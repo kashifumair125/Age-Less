@@ -6,6 +6,9 @@ import '../../providers/tracking_provider.dart';
 import '../../providers/weekly_providers.dart';
 import '../../providers/achievements_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../data/repositories/assessment_repository.dart';
+import '../../../data/repositories/user_repository.dart';
+import 'package:go_router/go_router.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -40,7 +43,9 @@ class DashboardScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: _BiologicalAgeCard(),
+                child: Consumer(
+                  builder: (context, ref, _) => _BiologicalAgeCard(ref: ref),
+                ),
               ),
             ),
 
@@ -285,158 +290,251 @@ class DashboardScreen extends ConsumerWidget {
 }
 
 class _BiologicalAgeCard extends StatelessWidget {
+  final WidgetRef ref;
+
+  const _BiologicalAgeCard({required this.ref});
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppTheme.primaryColor, Color(0xFF8B7CE7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: AppBorderRadius.large,
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+    final userRepository = ref.read(userRepositoryProvider);
+    final assessmentRepository = ref.read(assessmentRepositoryProvider);
+
+    return FutureBuilder(
+      future: Future.wait([
+        userRepository.getUserProfile(),
+        assessmentRepository.getLatestAssessment(),
+        assessmentRepository.getAssessments(),
+      ]),
+      builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
+        final userProfile = snapshot.hasData ? snapshot.data![0] : null;
+        final latestAssessment = snapshot.hasData ? snapshot.data![1] : null;
+        final allAssessments =
+            snapshot.hasData ? (snapshot.data![2] as List) : [];
+
+        // Calculate values
+        final biologicalAge = latestAssessment?.biologicalAge ?? 0.0;
+        final chronologicalAge =
+            latestAssessment?.chronologicalAge ?? userProfile?.birthDate != null
+                ? DateTime.now().year - userProfile!.birthDate!.year
+                : 30.0;
+        final ageDifference = latestAssessment?.ageDifference ?? 0.0;
+
+        // Calculate days since last assessment
+        final daysSinceAssessment = latestAssessment != null
+            ? DateTime.now().difference(latestAssessment.assessmentDate).inDays
+            : null;
+
+        // Calculate improvement (compare with previous assessment if exists)
+        double? improvement;
+        if (allAssessments.length >= 2) {
+          final previous = allAssessments[allAssessments.length - 2];
+          improvement = previous.biologicalAge - biologicalAge;
+        }
+
+        // Calculate health score (0-100) based on age difference
+        // If biological age is lower than chronological, that's good
+        final healthScore = ageDifference < 0
+            ? (70 + (ageDifference.abs() / chronologicalAge * 30))
+                .clamp(0, 100)
+            : (70 - (ageDifference / chronologicalAge * 70)).clamp(0, 100);
+
+        final hasAssessment = latestAssessment != null;
+
+        return Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppTheme.primaryColor, Color(0xFF8B7CE7)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: AppBorderRadius.large,
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryColor.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Your Biological Age',
-                    style: AppTextStyles.body1.copyWith(
-                      color: Colors.white.withOpacity(0.9),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Bind to biological age when available in provider
-                      Builder(builder: (context) {
-                        // Placeholder until biologicalAgeProvider is set
-                        return Text(
-                          '32.4',
-                          style: AppTextStyles.h1.copyWith(
-                            color: Colors.white,
-                            fontSize: 48,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        );
-                      }),
-                      const SizedBox(width: AppSpacing.sm),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Text(
-                          'years',
-                          style: AppTextStyles.body1.copyWith(
-                            color: Colors.white.withOpacity(0.8),
-                          ),
+                      Text(
+                        'Your Biological Age',
+                        style: AppTextStyles.body1.copyWith(
+                          color: Colors.white.withOpacity(0.9),
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            hasAssessment
+                                ? biologicalAge.toStringAsFixed(1)
+                                : '--',
+                            style: AppTextStyles.h1.copyWith(
+                              color: Colors.white,
+                              fontSize: 48,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Text(
+                              'years',
+                              style: AppTextStyles.body1.copyWith(
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      if (hasAssessment)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: ageDifference < 0
+                                ? AppTheme.successColor
+                                : Colors.orange,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                ageDifference < 0
+                                    ? Icons.trending_down
+                                    : Icons.trending_up,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                ageDifference < 0
+                                    ? '${ageDifference.abs().toStringAsFixed(1)} years younger'
+                                    : '${ageDifference.toStringAsFixed(1)} years older',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'Take assessment',
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.successColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  CircularPercentIndicator(
+                    radius: 60.0,
+                    lineWidth: 10.0,
+                    percent: hasAssessment ? (healthScore / 100) : 0.0,
+                    center: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
-                          Icons.trending_down,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
                         Text(
-                          '2.6 years younger',
-                          style: AppTextStyles.caption.copyWith(
+                          hasAssessment
+                              ? healthScore.toStringAsFixed(0)
+                              : '--',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
                             color: Colors.white,
-                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'Score',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withOpacity(0.8),
                           ),
                         ),
                       ],
                     ),
+                    progressColor: Colors.white,
+                    backgroundColor: Colors.white.withOpacity(0.3),
+                    circularStrokeCap: CircularStrokeCap.round,
                   ),
                 ],
               ),
-              CircularPercentIndicator(
-                radius: 60.0,
-                lineWidth: 10.0,
-                percent: 0.73,
-                center: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '73',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: _StatItem(
+                      label: 'Last Assessment',
+                      value: daysSinceAssessment != null
+                          ? daysSinceAssessment == 0
+                              ? 'Today'
+                              : daysSinceAssessment == 1
+                                  ? '1 day ago'
+                                  : '$daysSinceAssessment days ago'
+                          : 'Not taken',
                     ),
-                    Text(
-                      'Score',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 30,
+                    color: Colors.white.withOpacity(0.3),
+                  ),
+                  Expanded(
+                    child: _StatItem(
+                      label: 'Improvement',
+                      value: improvement != null
+                          ? improvement > 0
+                              ? '-${improvement.toStringAsFixed(1)} years'
+                              : '+${improvement.abs().toStringAsFixed(1)} years'
+                          : 'N/A',
                     ),
-                  ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () {
+                    context.push('/assessment');
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.white, width: 2),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Take New Assessment'),
                 ),
-                progressColor: Colors.white,
-                backgroundColor: Colors.white.withOpacity(0.3),
-                circularStrokeCap: CircularStrokeCap.round,
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: _StatItem(label: 'Last Assessment', value: '7 days ago'),
-              ),
-              Container(
-                width: 1,
-                height: 30,
-                color: Colors.white.withOpacity(0.3),
-              ),
-              Expanded(
-                child: _StatItem(label: 'Improvement', value: '-1.2 years'),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.white, width: 2),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Take New Assessment'),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

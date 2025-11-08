@@ -2,6 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../domain/services/biological_age_calculator.dart';
+import '../../../data/repositories/assessment_repository.dart';
+import '../../../data/repositories/user_repository.dart';
 
 class AssessmentScreen extends ConsumerStatefulWidget {
   const AssessmentScreen({Key? key}) : super(key: key);
@@ -570,14 +573,125 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     }
   }
 
-  void _completeAssessment() {
-    // Calculate biological age and show results
+  Future<void> _completeAssessment() async {
+    // Convert assessment data to category scores (0-10 scale)
+    final categoryScores = _calculateCategoryScores();
+
+    // Get user profile
+    final userRepository = ref.read(userRepositoryProvider);
+    final assessmentRepository = ref.read(assessmentRepositoryProvider);
+    final userProfile = await userRepository.getUserProfile();
+
+    if (userProfile == null) {
+      // Show error if no user profile exists
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Profile Required'),
+          content: const Text(
+            'Please set up your profile before completing the assessment.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Calculate biological age
+    final calculator = BiologicalAgeCalculator();
+    final assessment = calculator.calculate(
+      profile: userProfile,
+      categoryScores: categoryScores,
+      now: DateTime.now(),
+    );
+
+    // Save assessment
+    await assessmentRepository.saveAssessment(assessment);
+
+    // Update user's current biological age
+    await userRepository.updateBiologicalAge(assessment.biologicalAge);
+
+    // Show results
+    if (!mounted) return;
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Assessment Complete!'),
-        content: const Text(
-          'Your biological age has been calculated. View your personalized recommendations on the dashboard.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your Biological Age: ${assessment.biologicalAge.toStringAsFixed(1)} years',
+              style: AppTextStyles.h3.copyWith(color: AppTheme.primaryColor),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Chronological Age: ${assessment.chronologicalAge.toStringAsFixed(1)} years',
+              style: AppTextStyles.body1,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: assessment.ageDifference < 0
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.orange.withOpacity(0.1),
+                borderRadius: AppBorderRadius.medium,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    assessment.ageDifference < 0
+                        ? Icons.trending_down
+                        : Icons.trending_up,
+                    color: assessment.ageDifference < 0
+                        ? Colors.green
+                        : Colors.orange,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      assessment.ageDifference < 0
+                          ? 'You are ${assessment.ageDifference.abs().toStringAsFixed(1)} years younger biologically!'
+                          : 'Focus on your health to reduce biological age by ${assessment.ageDifference.toStringAsFixed(1)} years',
+                      style: AppTextStyles.body2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (assessment.topWeaknesses.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.md),
+              const Text(
+                'Focus Areas:',
+                style: AppTextStyles.body1,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ...assessment.topWeaknesses.map(
+                (weakness) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.arrow_right, size: 20),
+                      Text(
+                        weakness.substring(0, 1).toUpperCase() +
+                            weakness.substring(1),
+                        style: AppTextStyles.body2,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
         actions: [
           TextButton(
@@ -585,11 +699,212 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
               Navigator.of(context).pop();
               Navigator.of(context).pop();
             },
-            child: const Text('View Results'),
+            child: const Text('View Dashboard'),
           ),
         ],
       ),
     );
+  }
+
+  /// Convert raw assessment answers to category scores (0-10 scale)
+  Map<String, double> _calculateCategoryScores() {
+    // Nutrition scoring
+    final nutritionScore = _calculateNutritionScore();
+
+    // Exercise scoring
+    final exerciseScore = _calculateExerciseScore();
+
+    // Sleep scoring
+    final sleepScore = _calculateSleepScore();
+
+    // Stress scoring
+    final stressScore = _calculateStressScore();
+
+    return {
+      'nutrition': nutritionScore,
+      'exercise': exerciseScore,
+      'sleep': sleepScore,
+      'stress': stressScore,
+      'social': 5.0, // Default neutral score for social (not assessed yet)
+    };
+  }
+
+  double _calculateNutritionScore() {
+    double score = 5.0; // Start at neutral
+
+    // Diet type (0-3 points)
+    final dietType = assessmentData['dietType'];
+    if (dietType == 'Mediterranean') {
+      score += 3;
+    } else if (dietType == 'Plant-based') {
+      score += 2.5;
+    } else if (dietType == 'Paleo') {
+      score += 2;
+    } else if (dietType == 'Balanced') {
+      score += 1.5;
+    } else if (dietType == 'Standard Western') {
+      score -= 2;
+    }
+
+    // Vegetable servings (0-2 points)
+    final veggies = assessmentData['vegetableServings'] ?? 0;
+    if (veggies >= 5) {
+      score += 2;
+    } else if (veggies >= 3) {
+      score += 1;
+    } else if (veggies < 2) {
+      score -= 1;
+    }
+
+    // Processed food frequency (-2 to 1 points)
+    final processed = assessmentData['processedFoodFrequency'];
+    if (processed == 'Never') {
+      score += 1;
+    } else if (processed == 'Rarely') {
+      score += 0.5;
+    } else if (processed == 'Often' || processed == 'Daily') {
+      score -= 2;
+    }
+
+    // Intermittent fasting (0-1 points)
+    if (assessmentData['intermittentFasting'] == true) {
+      score += 1;
+    }
+
+    // Sugar intake (-2 to 1 points)
+    final sugar = assessmentData['sugarIntake'];
+    if (sugar == 'Very Low') {
+      score += 1;
+    } else if (sugar == 'Low') {
+      score += 0.5;
+    } else if (sugar == 'High') {
+      score -= 1;
+    } else if (sugar == 'Very High') {
+      score -= 2;
+    }
+
+    return score.clamp(0, 10);
+  }
+
+  double _calculateExerciseScore() {
+    double score = 5.0; // Start at neutral
+
+    // Weekly minutes (0-4 points)
+    final minutes = assessmentData['weeklyMinutes'] ?? 0;
+    if (minutes >= 300) {
+      score += 4;
+    } else if (minutes >= 150) {
+      score += 3;
+    } else if (minutes >= 75) {
+      score += 1.5;
+    } else if (minutes < 30) {
+      score -= 2;
+    }
+
+    // HIIT sessions (0-2 points)
+    final hiit = assessmentData['hiitSessionsPerWeek'] ?? 0;
+    if (hiit >= 3) {
+      score += 2;
+    } else if (hiit >= 1) {
+      score += 1;
+    }
+
+    // Strength training (0-2 points)
+    final strength = assessmentData['strengthSessionsPerWeek'] ?? 0;
+    if (strength >= 3) {
+      score += 2;
+    } else if (strength >= 2) {
+      score += 1.5;
+    } else if (strength >= 1) {
+      score += 1;
+    }
+
+    // Daily steps (0-2 points)
+    final steps = assessmentData['averageDailySteps'] ?? 0;
+    if (steps >= 10000) {
+      score += 2;
+    } else if (steps >= 7000) {
+      score += 1;
+    } else if (steps < 3000) {
+      score -= 1;
+    }
+
+    return score.clamp(0, 10);
+  }
+
+  double _calculateSleepScore() {
+    double score = 5.0; // Start at neutral
+
+    // Sleep hours (0-4 points)
+    final hours = assessmentData['averageHours'] ?? 7;
+    if (hours >= 7 && hours <= 9) {
+      score += 4;
+    } else if (hours >= 6 && hours < 7) {
+      score += 2;
+    } else if (hours < 6 || hours > 9) {
+      score -= 2;
+    }
+
+    // Sleep quality (0-3 points)
+    final quality = assessmentData['quality'] ?? 5;
+    if (quality >= 8) {
+      score += 3;
+    } else if (quality >= 6) {
+      score += 1.5;
+    } else if (quality < 5) {
+      score -= 2;
+    }
+
+    // Consistent schedule (0-2 points)
+    if (assessmentData['consistentSchedule'] == true) {
+      score += 2;
+    } else {
+      score -= 1;
+    }
+
+    // Screen before bed (-1 point if yes)
+    if (assessmentData['screenBeforeBed'] == true) {
+      score -= 1;
+    } else {
+      score += 1;
+    }
+
+    return score.clamp(0, 10);
+  }
+
+  double _calculateStressScore() {
+    double score = 5.0; // Start at neutral
+
+    // Perceived stress (inverse scoring: 0-5 points)
+    final stress = assessmentData['perceivedStress'] ?? 5;
+    score += (10 - stress) * 0.5; // Lower stress = higher score
+
+    // Regular meditation (0-2 points)
+    if (assessmentData['regularMeditation'] == true) {
+      score += 2;
+
+      // Meditation minutes bonus (0-1 points)
+      final meditationMinutes = assessmentData['meditationMinutesPerDay'] ?? 0;
+      if (meditationMinutes >= 20) {
+        score += 1;
+      } else if (meditationMinutes >= 10) {
+        score += 0.5;
+      }
+    } else {
+      score -= 1;
+    }
+
+    // Work-life balance (0-2 points)
+    final balance = assessmentData['workLifeBalance'] ?? 5;
+    if (balance >= 8) {
+      score += 2;
+    } else if (balance >= 6) {
+      score += 1;
+    } else if (balance < 4) {
+      score -= 2;
+    }
+
+    return score.clamp(0, 10);
   }
 }
 
