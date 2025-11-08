@@ -1,35 +1,35 @@
 # AgeLess - Biological Age Reversal
 
-A comprehensive Flutter application designed to help users track and reverse their biological age through personalized health interventions, progress tracking, and AI-powered coaching.
+A comprehensive Flutter application designed to help users track and reverse their biological age through personalized health interventions, progress tracking, and evidence-based coaching.
 
 ## Overview
 
 AgeLess is a mobile and desktop application that enables users to:
-- Track their biological age and health metrics
-- Receive personalized coaching and recommendations
-- Monitor progress over time with detailed analytics
-- Complete health assessments
-- Unlock achievements as they improve their health
-- Manage their wellness journey with local data storage
+- Track their biological age and health metrics with real-time calculations
+- Receive personalized coaching messages and evidence-based recommendations
+- Monitor progress over time with detailed analytics and trend charts
+- Complete comprehensive health assessments with scientific scoring algorithms
+- Unlock achievements as they improve their health and build tracking streaks
+- Manage their wellness journey with secure local data storage
 
 ## Features
 
 ### Core Features
-- **Dashboard** - Overview of health metrics and key insights
-- **Progress Tracking** - Monitor changes in biological age and health markers
-- **Health Assessment** - Comprehensive health evaluations
-- **AI Coaching** - Personalized recommendations and guidance
-- **Achievements System** - Gamified progress tracking
-- **User Profile** - Manage personal information and preferences
-- **Onboarding** - Smooth introduction to the app's features
+- **Dashboard** - Overview of health metrics with daily coaching tips and real-time biological age tracking
+- **Progress Tracking** - Monitor changes in biological age and health markers with visual trends
+- **Health Assessment** - Comprehensive health evaluations with evidence-based scoring across nutrition, exercise, sleep, and stress
+- **Rule-based Coaching** - Personalized recommendations and daily guidance based on your assessment results and tracking data
+- **Achievements System** - Gamified progress tracking with streak rewards and milestone celebrations
+- **User Profile** - Manage personal information and preferences with real data integration
+- **Onboarding** - Smooth introduction to the app's features with automatic profile creation
 
 ### Technical Features
-- **Offline-First** - Local data storage with Hive
-- **Beautiful Charts** - Visual progress tracking with fl_chart
-- **Smart Notifications** - Reminders and health tips
+- **Offline-First** - Local data storage with Hive for privacy and performance
+- **Beautiful Charts** - Visual progress tracking with fl_chart showing real assessment and tracking data
+- **Smart Notifications** - Reminders and health tips powered by flutter_local_notifications
 - **Cross-Platform** - Supports Android, iOS, Web, Windows, macOS, and Linux
-- **Dark Mode** - System-aware theme switching
-- **Modern Architecture** - Clean architecture with domain-driven design
+- **Custom Dark Mode** - Fully customized dark theme matching app branding
+- **Modern Architecture** - Clean architecture with domain-driven design and Riverpod state management
 
 ## Technology Stack
 

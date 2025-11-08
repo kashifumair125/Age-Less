@@ -5,6 +5,7 @@ import 'package:percent_indicator/circular_percent_indicator.dart';
 import '../../providers/tracking_provider.dart';
 import '../../providers/weekly_providers.dart';
 import '../../providers/achievements_provider.dart';
+import '../../providers/coaching_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/assessment_repository.dart';
 import '../../../data/repositories/user_repository.dart';
@@ -38,6 +39,66 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
+
+            // Daily Coaching Message
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final messageAsync = ref.watch(dailyMessageProvider);
+                    return messageAsync.when(
+                      data: (message) => Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppTheme.accentColor.withOpacity(0.1),
+                              AppTheme.secondaryColor.withOpacity(0.1),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: AppBorderRadius.large,
+                          border: Border.all(
+                            color: AppTheme.accentColor.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(AppSpacing.sm),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentColor.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.lightbulb,
+                                color: AppTheme.accentColor,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Text(
+                                message,
+                                style: AppTextStyles.body2.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
 
             // Biological Age Card (wired to user profile / biological age when available)
             SliverToBoxAdapter(
