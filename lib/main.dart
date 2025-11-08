@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'data/local/hive_config.dart';
+import 'data/services/admob_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +13,9 @@ void main() async {
   // Initialize Hive for local storage
   await Hive.initFlutter();
   await HiveConfig.initialize();
+
+  // Initialize Google AdMob
+  await AdMobService().initialize();
 
   runApp(const ProviderScope(child: AgeLessApp()));
 }
