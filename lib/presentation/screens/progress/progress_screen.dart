@@ -266,13 +266,27 @@ class _CategoryScoresChart extends StatelessWidget {
                           fillColor: AppTheme.primaryColor.withOpacity(0.2),
                           borderColor: AppTheme.primaryColor,
                           dataEntries: [
-                            // Note: Currently using estimated values based on biological age
-                            // In a future update, store actual category scores in assessment
-                            const RadarEntry(value: 70),
-                            const RadarEntry(value: 70),
-                            const RadarEntry(value: 70),
-                            const RadarEntry(value: 70),
-                            const RadarEntry(value: 70),
+                            // Real category scores from assessment (scaled to 0-100)
+                            RadarEntry(
+                                value: (assessment.categoryScores['nutrition'] ??
+                                        5.0) *
+                                    10),
+                            RadarEntry(
+                                value: (assessment.categoryScores['exercise'] ??
+                                        5.0) *
+                                    10),
+                            RadarEntry(
+                                value:
+                                    (assessment.categoryScores['sleep'] ?? 5.0) *
+                                        10),
+                            RadarEntry(
+                                value:
+                                    (assessment.categoryScores['stress'] ?? 5.0) *
+                                        10),
+                            RadarEntry(
+                                value:
+                                    (assessment.categoryScores['social'] ?? 5.0) *
+                                        10),
                           ],
                         ),
                       ],

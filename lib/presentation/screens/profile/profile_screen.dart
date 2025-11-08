@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../domain/models/user_profile.dart';
+import 'profile_edit_screen.dart';
+import '../../widgets/export_dialog.dart';
+import '../health_sync/health_sync_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -13,7 +16,21 @@ class ProfileScreen extends ConsumerWidget {
     final userRepository = ref.read(userRepositoryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        title: const Text('Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const ProfileEditScreen(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       body: FutureBuilder<UserProfile?>(
         future: userRepository.getUserProfile(),
         builder: (context, snapshot) {
@@ -128,6 +145,35 @@ class ProfileScreen extends ConsumerWidget {
                     icon: Icons.dark_mode,
                     label: 'Dark Mode',
                     trailing: Switch(value: false, onChanged: (v) {}),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: AppSpacing.xl),
+
+              _ProfileSection(
+                title: 'Data',
+                items: [
+                  _ProfileItem(
+                    icon: Icons.watch,
+                    label: 'Sync Wearables',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const HealthSyncScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _ProfileItem(
+                    icon: Icons.file_download,
+                    label: 'Export Data',
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => const ExportDialog(),
+                      );
+                    },
                   ),
                 ],
               ),

@@ -49,6 +49,13 @@ class BiologicalAgeCalculator {
       chronologicalAge: chronologicalAge.toDouble(),
       ageDifference: biologicalAge - chronologicalAge,
       topWeaknesses: topWeaknesses,
+      categoryScores: {
+        'nutrition': scoreFor('nutrition'),
+        'exercise': scoreFor('exercise'),
+        'sleep': scoreFor('sleep'),
+        'stress': scoreFor('stress'),
+        'social': scoreFor('social'),
+      },
     );
   }
 
