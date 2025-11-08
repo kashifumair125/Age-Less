@@ -9,6 +9,14 @@ class AppTheme {
   static const Color warningColor = Color(0xFFF9A825);
   static const Color errorColor = Color(0xFFD32F2F);
 
+  // Dark Theme Colors
+  static const Color darkPrimaryColor = Color(0xFF5C7CFA); // Lighter indigo for dark mode
+  static const Color darkSecondaryColor = Color(0xFF00E676); // Lighter green for dark mode
+  static const Color darkAccentColor = Color(0xFFFF8A65); // Lighter deep orange
+  static const Color darkBackgroundColor = Color(0xFF121212);
+  static const Color darkSurfaceColor = Color(0xFF1E1E1E);
+  static const Color darkCardColor = Color(0xFF2C2C2C);
+
   static ThemeData light() {
     final base = ThemeData.light();
     return base.copyWith(
@@ -30,6 +38,13 @@ class AppTheme {
         foregroundColor: Colors.black,
       ),
       scaffoldBackgroundColor: Colors.white,
+      cardTheme: CardTheme(
+        color: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppBorderRadius.large,
+        ),
+      ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
@@ -80,11 +95,93 @@ class AppTheme {
       ),
     );
   }
+
+  static ThemeData dark() {
+    final base = ThemeData.dark();
+    return base.copyWith(
+      primaryColor: darkPrimaryColor,
+      colorScheme: base.colorScheme.copyWith(
+        primary: darkPrimaryColor,
+        secondary: darkSecondaryColor,
+        error: errorColor,
+        background: darkBackgroundColor,
+        surface: darkSurfaceColor,
+        onPrimary: Colors.white,
+        onSecondary: Colors.black,
+        onBackground: Colors.white,
+        onSurface: Colors.white,
+      ),
+      appBarTheme: AppBarTheme(
+        elevation: 0,
+        backgroundColor: darkSurfaceColor,
+        foregroundColor: Colors.white,
+      ),
+      scaffoldBackgroundColor: darkBackgroundColor,
+      cardTheme: CardTheme(
+        color: darkCardColor,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppBorderRadius.large,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: darkPrimaryColor,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.md,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: AppBorderRadius.medium,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: darkPrimaryColor,
+          side: const BorderSide(color: darkPrimaryColor, width: 1.5),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: AppBorderRadius.medium,
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: darkCardColor,
+        border: OutlineInputBorder(
+          borderRadius: AppBorderRadius.small,
+          borderSide: BorderSide(color: Colors.grey.shade700),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppBorderRadius.small,
+          borderSide: BorderSide(color: Colors.grey.shade700),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppBorderRadius.small,
+          borderSide: const BorderSide(color: darkPrimaryColor, width: 2),
+        ),
+      ),
+      textTheme: TextTheme(
+        displayLarge: AppTextStyles.h1.copyWith(color: Colors.white),
+        displayMedium: AppTextStyles.h2.copyWith(color: Colors.white),
+        titleLarge: AppTextStyles.h3.copyWith(color: Colors.white),
+        bodyLarge: AppTextStyles.body1.copyWith(color: Colors.white70),
+        bodyMedium: AppTextStyles.body2.copyWith(color: Colors.white70),
+        bodySmall: AppTextStyles.caption.copyWith(color: Colors.white54),
+      ),
+      dividerColor: Colors.grey.shade800,
+    );
+  }
 }
 
 extension AppThemeVariants on AppTheme {
   static ThemeData get lightTheme => AppTheme.light();
-  static ThemeData get darkTheme => ThemeData.dark();
+  static ThemeData get darkTheme => AppTheme.dark();
 }
 
 class AppSpacing {

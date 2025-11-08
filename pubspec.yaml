@@ -51,6 +51,11 @@ dependencies:
   # Fonts (optional alternative to bundling font files)
   google_fonts: ^6.2.1
   timezone: ^0.10.1
+  # UUID generation
+  uuid: ^4.5.1
+  # Health data integration (Google Fit, Apple Health)
+  health: ^11.1.0
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:

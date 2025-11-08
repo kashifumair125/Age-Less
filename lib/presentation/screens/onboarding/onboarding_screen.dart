@@ -4,6 +4,8 @@ import '../../../core/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/local/hive_config.dart';
+import '../../../domain/models/user_profile.dart';
+import 'package:uuid/uuid.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
@@ -71,9 +73,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         curve: Curves.easeInOut,
                       );
                     } else {
+                      // Mark onboarding as complete
                       final box = HiveConfig.settingsBox;
                       await box.put(
                           AppConstants.hasCompletedOnboardingKey, true);
+
+                      // Create default user profile if none exists
+                      final profileBox = HiveConfig.userProfileBox;
+                      if (profileBox.isEmpty) {
+                        final defaultProfile = UserProfile(
+                          id: const Uuid().v4(),
+                          name: 'User',
+                          email: '',
+                          createdAt: DateTime.now(),
+                          birthDate: DateTime.now().subtract(
+                              const Duration(days: 365 * 30)), // 30 years old
+                          heightCm: 170,
+                          weightKg: 70,
+                          gender: null,
+                        );
+                        await profileBox.add(defaultProfile);
+                      }
+
                       if (mounted) {
                         context.go('/main');
                       }

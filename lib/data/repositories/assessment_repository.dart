@@ -19,6 +19,7 @@ class AssessmentRepository {
       'chronologicalAge': assessment.chronologicalAge,
       'ageDifference': assessment.ageDifference,
       'weaknesses': assessment.topWeaknesses,
+      'categoryScores': assessment.categoryScores,
     });
   }
 
@@ -26,6 +27,26 @@ class AssessmentRepository {
     final items = <BiologicalAgeAssessment>[];
     for (final v in _box.values) {
       if (v is Map) {
+        // Parse category scores with fallback for old data
+        final categoryScoresRaw = v['categoryScores'];
+        final Map<String, double> categoryScores;
+        if (categoryScoresRaw is Map) {
+          categoryScores = Map<String, double>.from(
+            categoryScoresRaw.map((key, value) =>
+              MapEntry(key.toString(), (value as num).toDouble())
+            ),
+          );
+        } else {
+          // Fallback for old assessments without category scores
+          categoryScores = {
+            'nutrition': 5.0,
+            'exercise': 5.0,
+            'sleep': 5.0,
+            'stress': 5.0,
+            'social': 5.0,
+          };
+        }
+
         items.add(BiologicalAgeAssessment(
           assessmentDate: DateTime.parse(v['date'] as String),
           biologicalAge: (v['biologicalAge'] as num).toDouble(),
@@ -33,6 +54,7 @@ class AssessmentRepository {
           ageDifference: (v['ageDifference'] as num).toDouble(),
           topWeaknesses:
               (v['weaknesses'] as List?)?.cast<String>() ?? const <String>[],
+          categoryScores: categoryScores,
         ));
       }
     }
