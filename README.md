@@ -188,3 +188,19 @@ For issues and questions, please open an issue in the GitHub repository.
 ---
 
 Built with Flutter and ❤️ for health optimization
+
+
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/f069a929-b297-458f-bb61-8a00313cd6e0" width="30%" />
+  <img src="https://github.com/user-attachments/assets/1c3c9880-a34e-4673-b008-f9443fb706a1" width="30%" />
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/26cd5189-61ad-419f-87b5-111323094596" width="30%" />
+  <img src="https://github.com/user-attachments/assets/7cdaef56-3eef-4935-b676-285f307af88b" width="30%" />
+</p>
+
+
+
+
