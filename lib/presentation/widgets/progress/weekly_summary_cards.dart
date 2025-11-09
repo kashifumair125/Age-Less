@@ -121,8 +121,8 @@ class WeeklySummaryCards extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Row(
-                  baseline: TextBaseline.alphabetic,
                   crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(
                       value,
@@ -209,8 +209,8 @@ class WeeklySummaryCards extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           _buildComparisonRow(
             'Exercise Minutes',
-            current.totalExerciseMinutes,
-            previous.totalExerciseMinutes,
+            current.totalExerciseMinutes.toDouble(),
+            previous.totalExerciseMinutes.toDouble(),
           ),
           _buildComparisonRow(
             'Active Days',
