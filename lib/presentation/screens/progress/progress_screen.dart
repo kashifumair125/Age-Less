@@ -4,7 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/assessment_repository.dart';
+import '../../../data/repositories/tracking_repository.dart';
 import '../../providers/achievements_provider.dart';
+import '../../widgets/progress/weekly_summary_cards.dart';
+import '../../widgets/progress/monthly_report.dart';
+import '../../widgets/progress/before_after_comparison.dart';
+import '../../widgets/progress/habit_streaks.dart';
 
 class ProgressScreen extends ConsumerWidget {
   const ProgressScreen({Key? key}) : super(key: key);
@@ -12,6 +17,7 @@ class ProgressScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final assessmentRepository = ref.read(assessmentRepositoryProvider);
+    final trackingRepository = ref.read(trackingRepositoryProvider);
     final achievements = ref.watch(achievementsProvider);
 
     return Scaffold(
@@ -21,6 +27,53 @@ class ProgressScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Before/After Comparison
+            FutureBuilder(
+              future: Future.wait([
+                assessmentRepository.getAssessments(),
+              ]),
+              builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    height: 150,
+                    alignment: Alignment.center,
+                    child: const CircularProgressIndicator(),
+                  );
+                }
+                final assessments = snapshot.data?[0] ?? [];
+                final firstAssessment = assessments.isNotEmpty ? assessments.first : null;
+                final latestAssessment = assessments.isNotEmpty ? assessments.last : null;
+
+                return BeforeAfterComparison(
+                  firstAssessment: firstAssessment,
+                  latestAssessment: latestAssessment,
+                );
+              },
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
+
+            // Weekly Summary Cards
+            FutureBuilder(
+              future: trackingRepository.getTrackingRange(
+                DateTime.now().subtract(const Duration(days: 7)),
+                DateTime.now().add(const Duration(days: 1)),
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    height: 100,
+                    alignment: Alignment.center,
+                    child: const CircularProgressIndicator(),
+                  );
+                }
+                final weekData = snapshot.data ?? [];
+                return WeeklySummaryCards(weekData: weekData);
+              },
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
+
             Text('Biological Age Trend', style: AppTextStyles.h3),
             const SizedBox(height: AppSpacing.lg),
             FutureBuilder(
@@ -54,6 +107,59 @@ class ProgressScreen extends ConsumerWidget {
                 }
                 final latestAssessment = snapshot.data;
                 return _CategoryScoresChart(assessment: latestAssessment);
+              },
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
+
+            // Habit Streaks
+            FutureBuilder(
+              future: trackingRepository.getAllTracking(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    height: 100,
+                    alignment: Alignment.center,
+                    child: const CircularProgressIndicator(),
+                  );
+                }
+                final trackingHistory = snapshot.data ?? [];
+                return HabitStreaks(trackingHistory: trackingHistory);
+              },
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
+
+            // Monthly Report
+            FutureBuilder(
+              future: Future.wait([
+                trackingRepository.getTrackingRange(
+                  DateTime(DateTime.now().year, DateTime.now().month, 1),
+                  DateTime.now().add(const Duration(days: 1)),
+                ),
+                assessmentRepository.getAssessments(),
+              ]),
+              builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    height: 100,
+                    alignment: Alignment.center,
+                    child: const CircularProgressIndicator(),
+                  );
+                }
+                final monthData = snapshot.data?[0] ?? [];
+                final allAssessments = snapshot.data?[1] ?? [];
+                final now = DateTime.now();
+                final monthAssessments = allAssessments.where((a) {
+                  final date = a.assessmentDate as DateTime;
+                  return date.year == now.year && date.month == now.month;
+                }).toList();
+
+                return MonthlyReport(
+                  monthData: monthData,
+                  monthAssessments: monthAssessments,
+                  month: now,
+                );
               },
             ),
 
