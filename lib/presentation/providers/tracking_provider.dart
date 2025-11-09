@@ -2,10 +2,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/daily_tracking.dart';
 import '../../data/repositories/tracking_repository.dart';
+import '../../core/services/error_service.dart';
 
 final currentTrackingProvider = FutureProvider<DailyTracking?>((ref) async {
-  final repository = ref.watch(trackingRepositoryProvider);
-  return await repository.getTrackingForDate(DateTime.now());
+  try {
+    final repository = ref.watch(trackingRepositoryProvider);
+    final tracking = await repository.getTrackingForDate(DateTime.now());
+
+    return tracking;
+  } catch (error, stackTrace) {
+    ErrorService.logError(error, stackTrace, context: 'currentTrackingProvider');
+    rethrow;
+  }
 });
 
 class SelectedDateNotifier extends Notifier<DateTime> {
