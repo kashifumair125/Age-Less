@@ -67,4 +67,14 @@ class AssessmentRepository {
     final list = await getAssessments();
     return list.isEmpty ? null : list.last;
   }
+
+  Box getProgressBox() {
+    return HiveConfig.settingsBox;
+  }
+
+  Future<void> clearProgress() async {
+    final box = getProgressBox();
+    await box.delete('assessment_progress');
+    await box.delete('current_section');
+  }
 }

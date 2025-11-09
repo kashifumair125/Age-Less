@@ -112,6 +112,56 @@ class DashboardScreen extends ConsumerWidget {
 
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
 
+            // Quick Actions
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: Text('Quick Actions', style: AppTextStyles.h3),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  mainAxisSpacing: AppSpacing.sm,
+                  crossAxisSpacing: AppSpacing.sm,
+                  childAspectRatio: 1.0,
+                ),
+                delegate: SliverChildListDelegate([
+                  _QuickActionButton(
+                    icon: Icons.restaurant,
+                    label: 'Track',
+                    color: AppTheme.secondaryColor,
+                    onTap: () => context.push('/tracking'),
+                  ),
+                  _QuickActionButton(
+                    icon: Icons.assessment,
+                    label: 'Assess',
+                    color: AppTheme.primaryColor,
+                    onTap: () => context.push('/assessment'),
+                  ),
+                  _QuickActionButton(
+                    icon: Icons.show_chart,
+                    label: 'Progress',
+                    color: AppTheme.accentColor,
+                    onTap: () => context.push('/progress'),
+                  ),
+                  _QuickActionButton(
+                    icon: Icons.person,
+                    label: 'Profile',
+                    color: Colors.blue,
+                    onTap: () => context.push('/profile'),
+                  ),
+                ]),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+
             // Today's Goals (wired to current tracking when available)
             SliverToBoxAdapter(
               child: Padding(
@@ -308,37 +358,51 @@ class DashboardScreen extends ConsumerWidget {
 
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
 
-            // Recommendations List
+            // Recommendations List (Dynamic from provider)
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _RecommendationCard(
-                    title: 'Start HIIT Training',
-                    description:
-                        'High-intensity intervals can reverse cellular aging',
-                    impact: 'High Impact',
-                    evidence: 'Strong Evidence',
-                    category: 'Exercise',
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _RecommendationCard(
-                    title: 'Mediterranean Diet',
-                    description: 'Proven to reduce biological age by 2-4 years',
-                    impact: 'High Impact',
-                    evidence: 'Strong Evidence',
-                    category: 'Nutrition',
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _RecommendationCard(
-                    title: 'Daily Meditation',
-                    description:
-                        'Reduces cortisol and improves heart rate variability',
-                    impact: 'Medium Impact',
-                    evidence: 'Strong Evidence',
-                    category: 'Stress',
-                  ),
-                ]),
+              sliver: Consumer(
+                builder: (context, ref, _) {
+                  final recommendationsAsync = ref.watch(dashboardRecommendationsProvider);
+                  return recommendationsAsync.when(
+                    data: (recommendations) {
+                      if (recommendations.isEmpty) {
+                        return SliverToBoxAdapter(
+                          child: Container(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardTheme.color,
+                              borderRadius: AppBorderRadius.large,
+                              border: Border.all(color: Colors.grey.shade200, width: 1),
+                            ),
+                            child: const Text(
+                              'Complete your assessment to receive personalized recommendations!',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        );
+                      }
+                      return SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            if (index.isOdd) {
+                              return const SizedBox(height: AppSpacing.md);
+                            }
+                            final recIndex = index ~/ 2;
+                            return _RecommendationCard(
+                              description: recommendations[recIndex],
+                            );
+                          },
+                          childCount: recommendations.length * 2 - 1,
+                        ),
+                      );
+                    },
+                    loading: () => const SliverToBoxAdapter(
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+                  );
+                },
               ),
             ),
 
@@ -710,18 +774,10 @@ class _GoalCard extends StatelessWidget {
 }
 
 class _RecommendationCard extends StatelessWidget {
-  final String title;
   final String description;
-  final String impact;
-  final String evidence;
-  final String category;
 
   const _RecommendationCard({
-    required this.title,
     required this.description,
-    required this.impact,
-    required this.evidence,
-    required this.category,
   });
 
   @override
@@ -733,40 +789,26 @@ class _RecommendationCard extends StatelessWidget {
         borderRadius: AppBorderRadius.large,
         border: Border.all(color: Colors.grey.shade200, width: 1),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: AppTextStyles.body1.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Colors.grey.shade400,
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.lightbulb_outline,
+              color: AppTheme.primaryColor,
+              size: 20,
+            ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            description,
-            style: AppTextStyles.body2.copyWith(color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              _Badge(label: category, color: AppTheme.primaryColor),
-              _Badge(label: impact, color: AppTheme.errorColor),
-              _Badge(label: evidence, color: AppTheme.successColor),
-            ],
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              description,
+              style: AppTextStyles.body2,
+            ),
           ),
         ],
       ),
@@ -774,25 +816,47 @@ class _RecommendationCard extends StatelessWidget {
   }
 }
 
-class _Badge extends StatelessWidget {
+class _QuickActionButton extends StatelessWidget {
+  final IconData icon;
   final String label;
   final Color color;
+  final VoidCallback onTap;
 
-  const _Badge({required this.label, required this.color});
+  const _QuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.caption.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: AppBorderRadius.medium,
+      child: Container(
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: AppBorderRadius.medium,
+          border: Border.all(
+            color: color.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: AppTextStyles.caption.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
