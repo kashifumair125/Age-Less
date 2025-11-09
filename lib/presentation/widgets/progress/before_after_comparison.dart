@@ -179,7 +179,7 @@ class BeforeAfterComparison extends StatelessWidget {
     required String title,
     required String date,
     required double bioAge,
-    required int chronologicalAge,
+    required double chronologicalAge,
     required Color color,
   }) {
     final difference = bioAge - chronologicalAge;

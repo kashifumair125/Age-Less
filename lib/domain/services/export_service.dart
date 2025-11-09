@@ -168,13 +168,17 @@ class ExportService {
       if (data['profile'] != null) {
         final profileData = data['profile'] as Map<String, dynamic>;
         profile = UserProfile(
+          id: profileData['id'] as String? ?? 'imported-profile',
           name: profileData['name'] as String? ?? '',
           email: profileData['email'] as String? ?? '',
+          createdAt: profileData['createdAt'] != null
+              ? DateTime.parse(profileData['createdAt'] as String)
+              : DateTime.now(),
           birthDate: profileData['birthDate'] != null
               ? DateTime.parse(profileData['birthDate'] as String)
               : null,
-          heightCm: (profileData['heightCm'] as num?)?.toDouble(),
-          weightKg: (profileData['weightKg'] as num?)?.toDouble(),
+          heightCm: (profileData['heightCm'] as num?)?.toDouble() ?? 170.0,
+          weightKg: (profileData['weightKg'] as num?)?.toDouble() ?? 70.0,
           gender: profileData['gender'] as String?,
         );
       }

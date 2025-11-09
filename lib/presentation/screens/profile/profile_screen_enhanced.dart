@@ -7,6 +7,7 @@ import '../../../data/repositories/assessment_repository.dart';
 import '../../../data/repositories/tracking_repository.dart';
 import '../../../domain/models/user_profile.dart';
 import '../../../domain/models/health_profile.dart';
+import '../../../domain/models/biological_age_assessment.dart';
 import '../../../domain/services/progress_service.dart';
 import '../../widgets/profile/user_stats_card.dart';
 import '../../widgets/profile/health_journey_timeline.dart';
@@ -201,9 +202,13 @@ class _ProfileScreenEnhancedState extends ConsumerState<ProfileScreenEnhanced> {
                           return const Center(child: CircularProgressIndicator());
                         }
                         final data = snapshot.data as Map<String, dynamic>? ?? {};
+                        final assessments = (data['assessments'] as List<dynamic>?)
+                            ?.cast<BiologicalAgeAssessment>() ?? <BiologicalAgeAssessment>[];
+                        final milestones = (data['milestones'] as List<dynamic>?)
+                            ?.cast<Milestone>() ?? <Milestone>[];
                         return HealthJourneyTimeline(
-                          assessments: data['assessments'] ?? [],
-                          milestones: data['milestones'] ?? [],
+                          assessments: assessments,
+                          milestones: milestones,
                         );
                       },
                     ),
