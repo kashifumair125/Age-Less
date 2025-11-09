@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
+import '../widgets/animated_widgets.dart';
 
 /// Extension methods for AsyncValue to simplify error/loading state handling
 extension AsyncValueUI<T> on AsyncValue<T> {
@@ -14,7 +17,7 @@ extension AsyncValueUI<T> on AsyncValue<T> {
   }) {
     return this.when(
       data: data,
-      loading: loading ?? () => const Center(child: CircularProgressIndicator()),
+      loading: loading ?? () => const LoadingDisplay(),
       error: error ?? (err, stack) => ErrorDisplay(error: err, stackTrace: stack),
       skipLoadingOnRefresh: skipLoadingOnRefresh,
       skipLoadingOnReload: skipLoadingOnReload,
@@ -30,7 +33,7 @@ extension AsyncValueUI<T> on AsyncValue<T> {
   }) {
     return when(
       data: onData,
-      loading: () => onLoading?.call() ?? const Center(child: CircularProgressIndicator()),
+      loading: () => onLoading?.call() ?? const LoadingDisplay(),
       error: (err, _) => onError?.call(err) ?? ErrorDisplay(error: err),
     );
   }
@@ -57,7 +60,7 @@ extension AsyncValueUI<T> on AsyncValue<T> {
   }
 }
 
-/// Reusable error display widget
+/// Reusable error display widget with modern design
 class ErrorDisplay extends StatelessWidget {
   final Object error;
   final StackTrace? stackTrace;
@@ -74,40 +77,85 @@ class ErrorDisplay extends StatelessWidget {
   Widget build(BuildContext context) {
     final errorMessage = _getErrorMessage(error);
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Oops! Something went wrong',
-              style: Theme.of(context).textTheme.titleLarge,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              errorMessage,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Try Again'),
+    return FadeInAnimation(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.errorSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.error_outline_rounded,
+                  size: 48,
+                  color: AppColors.error,
+                ),
               ),
+              const SizedBox(height: 24),
+              Text(
+                'Oops! Something went wrong',
+                style: AppTypography.h2,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                errorMessage,
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.lightTextSecondary,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(height: 32),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradientLinear,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onRetry,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.refresh, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Try Again',
+                              style: AppTypography.labelLarge
+                                  .copyWith(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -129,7 +177,7 @@ class ErrorDisplay extends StatelessWidget {
   }
 }
 
-/// Loading state widget with optional message
+/// Loading state widget with modern animated loader
 class LoadingDisplay extends StatelessWidget {
   final String? message;
 
@@ -141,12 +189,14 @@ class LoadingDisplay extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(),
+          const PulseLoader(size: 80),
           if (message != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Text(
               message!,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.lightTextSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -156,7 +206,7 @@ class LoadingDisplay extends StatelessWidget {
   }
 }
 
-/// Empty state widget
+/// Empty state widget with modern design
 class EmptyDisplay extends StatelessWidget {
   final String title;
   final String? message;
@@ -173,38 +223,61 @@ class EmptyDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 64,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge,
-              textAlign: TextAlign.center,
-            ),
-            if (message != null) ...[
-              const SizedBox(height: 8),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return FadeInAnimation(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary.withOpacity(0.1),
+                      AppColors.primaryLight.withOpacity(0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: 64,
+                  color: AppColors.primary.withOpacity(0.6),
+                ),
+              ),
+              const SizedBox(height: 24),
               Text(
-                message!,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                title,
+                style: AppTypography.h2,
                 textAlign: TextAlign.center,
               ),
+              if (message != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  message!,
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              if (action != null) ...[
+                const SizedBox(height: 32),
+                action!,
+              ],
             ],
-            if (action != null) ...[
-              const SizedBox(height: 24),
-              action!,
-            ],
-          ],
+          ),
         ),
       ),
     );
