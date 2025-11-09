@@ -21,12 +21,55 @@ class ProgressScreen extends ConsumerWidget {
     final achievements = ref.watch(achievementsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Your Progress')),
+      appBar: AppBar(
+        title: const Text('Your Progress'),
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // NEW FEATURES INDICATOR
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.green, Colors.teal],
+                ),
+                borderRadius: AppBorderRadius.large,
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.new_releases, color: Colors.white, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '🎉 NEW: Enhanced Progress Screen!',
+                          style: AppTextStyles.body1.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Weekly summaries, monthly reports, habit streaks & more below!',
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             // Before/After Comparison
             FutureBuilder(
               future: Future.wait([
