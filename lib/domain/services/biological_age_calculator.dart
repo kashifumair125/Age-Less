@@ -1,4 +1,5 @@
 // lib/domain/services/biological_age_calculator.dart
+import '../../core/services/error_service.dart';
 import '../models/biological_age_assessment.dart';
 import '../models/user_profile.dart';
 
@@ -11,7 +12,26 @@ class BiologicalAgeCalculator {
     required Map<String, double> categoryScores,
     required DateTime now,
   }) {
-    final chronologicalAge = _calculateChronologicalAge(profile.birthDate, now);
+    try {
+      // Validate inputs
+      if (categoryScores.isEmpty) {
+        throw const ValidationException(
+          'Category scores cannot be empty',
+          code: 'EMPTY_SCORES',
+        );
+      }
+
+      // Validate score ranges
+      for (final entry in categoryScores.entries) {
+        if (entry.value < 0 || entry.value > 10) {
+          throw ValidationException(
+            'Score for ${entry.key} must be between 0 and 10',
+            code: 'INVALID_SCORE_RANGE',
+          );
+        }
+      }
+
+      final chronologicalAge = _calculateChronologicalAge(profile.birthDate, now);
 
     // Evidence-weighted composite (simple MVP weights)
     // Sums to 1.0
@@ -43,20 +63,28 @@ class BiologicalAgeCalculator {
 
     final topWeaknesses = entries.take(3).map((e) => e.key).toList();
 
-    return BiologicalAgeAssessment(
-      assessmentDate: now,
-      biologicalAge: biologicalAge.toDouble(),
-      chronologicalAge: chronologicalAge.toDouble(),
-      ageDifference: biologicalAge - chronologicalAge,
-      topWeaknesses: topWeaknesses,
-      categoryScores: {
-        'nutrition': scoreFor('nutrition'),
-        'exercise': scoreFor('exercise'),
-        'sleep': scoreFor('sleep'),
-        'stress': scoreFor('stress'),
-        'social': scoreFor('social'),
-      },
-    );
+      return BiologicalAgeAssessment(
+        assessmentDate: now,
+        biologicalAge: biologicalAge.toDouble(),
+        chronologicalAge: chronologicalAge.toDouble(),
+        ageDifference: biologicalAge - chronologicalAge,
+        topWeaknesses: topWeaknesses,
+        categoryScores: {
+          'nutrition': scoreFor('nutrition'),
+          'exercise': scoreFor('exercise'),
+          'sleep': scoreFor('sleep'),
+          'stress': scoreFor('stress'),
+          'social': scoreFor('social'),
+        },
+      );
+    } catch (error, stackTrace) {
+      ErrorService.logError(
+        error,
+        stackTrace,
+        context: 'BiologicalAgeCalculator.calculate',
+      );
+      rethrow;
+    }
   }
 
   double _calculateChronologicalAge(DateTime? birthDate, DateTime now) {

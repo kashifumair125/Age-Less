@@ -1,4 +1,5 @@
 // lib/domain/services/progress_service.dart
+import '../../core/services/error_service.dart';
 import '../models/daily_tracking.dart';
 import '../models/progress_metrics.dart';
 
@@ -9,9 +10,18 @@ class ProgressService {
     required double initialBiologicalAge,
     required double currentBiologicalAge,
   }) {
-    final now = DateTime.now();
-    final startDate =
-        trackingHistory.isEmpty ? now : trackingHistory.first.date;
+    try {
+      // Validate inputs
+      if (initialBiologicalAge < 0 || currentBiologicalAge < 0) {
+        throw const ValidationException(
+          'Biological ages must be non-negative',
+          code: 'INVALID_AGE',
+        );
+      }
+
+      final now = DateTime.now();
+      final startDate =
+          trackingHistory.isEmpty ? now : trackingHistory.first.date;
 
     // Calculate category trends
     final categoryTrends = _calculateCategoryTrends(trackingHistory);
@@ -22,17 +32,25 @@ class ProgressService {
     // Generate achievements
     final achievements = _generateAchievements(trackingHistory, streaks);
 
-    return ProgressMetrics(
-      startDate: startDate,
-      currentDate: now,
-      initialBiologicalAge: initialBiologicalAge,
-      currentBiologicalAge: currentBiologicalAge,
-      ageReduction: initialBiologicalAge - currentBiologicalAge,
-      categoryTrends: categoryTrends,
-      achievements: achievements,
-      currentStreak: streaks['current']!,
-      longestStreak: streaks['longest']!,
-    );
+      return ProgressMetrics(
+        startDate: startDate,
+        currentDate: now,
+        initialBiologicalAge: initialBiologicalAge,
+        currentBiologicalAge: currentBiologicalAge,
+        ageReduction: initialBiologicalAge - currentBiologicalAge,
+        categoryTrends: categoryTrends,
+        achievements: achievements,
+        currentStreak: streaks['current']!,
+        longestStreak: streaks['longest']!,
+      );
+    } catch (error, stackTrace) {
+      ErrorService.logError(
+        error,
+        stackTrace,
+        context: 'ProgressService.calculateProgress',
+      );
+      rethrow;
+    }
   }
 
   Map<String, List<DataPoint>> _calculateCategoryTrends(
@@ -87,60 +105,75 @@ class ProgressService {
   }
 
   double _calculateNutritionScore(NutritionLog nutrition) {
-    double score = 0.0;
+    try {
+      double score = 0.0;
 
-    // Calorie adherence (0-3 points)
-    final calorieTarget = 2000;
-    final calorieAdherence =
-        1 - (nutrition.caloriesConsumed - calorieTarget).abs() / calorieTarget;
-    score += calorieAdherence * 3;
+      // Calorie adherence (0-3 points)
+      final calorieTarget = 2000;
+      final calorieAdherence =
+          1 - (nutrition.caloriesConsumed - calorieTarget).abs() / calorieTarget;
+      score += (calorieAdherence * 3).clamp(0, 3);
 
-    // Vegetable intake (0-3 points)
-    score += (nutrition.vegetables / 7) * 3;
+      // Vegetable intake (0-3 points)
+      score += ((nutrition.vegetables / 7) * 3).clamp(0, 3);
 
-    // Fasting (0-2 points)
-    score += nutrition.fastingCompleted ? 2 : 0;
+      // Fasting (0-2 points)
+      score += nutrition.fastingCompleted ? 2 : 0;
 
-    // Protein adequacy (0-2 points)
-    score += (nutrition.proteinGrams / 150) * 2;
+      // Protein adequacy (0-2 points)
+      score += ((nutrition.proteinGrams / 150) * 2).clamp(0, 2);
 
-    return score.clamp(0, 10);
+      return score.clamp(0, 10);
+    } catch (error) {
+      // Return neutral score on calculation error
+      return 5.0;
+    }
   }
 
   double _calculateExerciseScore(ExerciseLog exercise) {
-    double score = 0.0;
+    try {
+      double score = 0.0;
 
-    // Total minutes (0-5 points)
-    score += (exercise.totalMinutes / 60) * 5;
+      // Total minutes (0-5 points)
+      score += ((exercise.totalMinutes / 60) * 5).clamp(0, 5);
 
-    // Variety bonus (0-3 points)
-    final uniqueTypes = exercise.sessions.map((s) => s.type).toSet().length;
-    score += uniqueTypes * 1.0;
+      // Variety bonus (0-3 points)
+      final uniqueTypes = exercise.sessions.map((s) => s.type).toSet().length;
+      score += (uniqueTypes * 1.0).clamp(0, 3);
 
-    // Intensity (0-2 points)
-    final avgIntensity = exercise.sessions.isEmpty
-        ? 0
-        : exercise.sessions.map((s) => s.intensity).reduce((a, b) => a + b) /
-            exercise.sessions.length;
-    score += (avgIntensity / 10) * 2;
+      // Intensity (0-2 points)
+      final avgIntensity = exercise.sessions.isEmpty
+          ? 0.0
+          : exercise.sessions.map((s) => s.intensity).reduce((a, b) => a + b) /
+              exercise.sessions.length;
+      score += ((avgIntensity / 10) * 2).clamp(0, 2);
 
-    return score.clamp(0, 10);
+      return score.clamp(0, 10);
+    } catch (error) {
+      // Return neutral score on calculation error
+      return 5.0;
+    }
   }
 
   double _calculateSleepScore(SleepLog sleep) {
-    double score = 0.0;
+    try {
+      double score = 0.0;
 
-    // Duration (0-5 points) - optimal 7-9 hours
-    if (sleep.hoursSlept >= 7 && sleep.hoursSlept <= 9) {
-      score += 5;
-    } else {
-      score += 3;
+      // Duration (0-5 points) - optimal 7-9 hours
+      if (sleep.hoursSlept >= 7 && sleep.hoursSlept <= 9) {
+        score += 5;
+      } else {
+        score += 3;
+      }
+
+      // Quality (0-5 points)
+      score += ((sleep.sleepQuality / 10) * 5).clamp(0, 5);
+
+      return score.clamp(0, 10);
+    } catch (error) {
+      // Return neutral score on calculation error
+      return 5.0;
     }
-
-    // Quality (0-5 points)
-    score += (sleep.sleepQuality / 10) * 5;
-
-    return score.clamp(0, 10);
   }
 
   Map<String, int> _calculateStreaks(List<DailyTracking> history) {

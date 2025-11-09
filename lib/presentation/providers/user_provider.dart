@@ -2,10 +2,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/user_profile.dart';
 import '../../data/repositories/user_repository.dart';
+import '../../core/services/error_service.dart';
 
 final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
-  final repository = ref.watch(userRepositoryProvider);
-  return await repository.getUserProfile();
+  try {
+    // Keep provider alive for caching
+    ref.keepAlive();
+
+    final repository = ref.watch(userRepositoryProvider);
+    final profile = await repository.getUserProfile();
+
+    return profile;
+  } catch (error, stackTrace) {
+    ErrorService.logError(error, stackTrace, context: 'userProfileProvider');
+    rethrow;
+  }
 });
 
 class BiologicalAgeNotifier extends Notifier<double?> {
