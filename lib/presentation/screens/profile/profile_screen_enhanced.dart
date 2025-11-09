@@ -1,6 +1,10 @@
 // lib/presentation/screens/profile/profile_screen_enhanced.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/repositories/assessment_repository.dart';
@@ -9,6 +13,7 @@ import '../../../domain/models/user_profile.dart';
 import '../../../domain/models/health_profile.dart';
 import '../../../domain/models/biological_age_assessment.dart';
 import '../../../domain/services/progress_service.dart';
+import '../../../domain/services/export_service.dart';
 import '../../widgets/profile/user_stats_card.dart';
 import '../../widgets/profile/health_journey_timeline.dart';
 import '../../widgets/profile/achievement_gallery.dart';
@@ -414,12 +419,99 @@ class _ProfileScreenEnhancedState extends ConsumerState<ProfileScreenEnhanced> {
     );
   }
 
-  void _backupData() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Data backed up successfully!'),
-        backgroundColor: AppTheme.successColor,
+  Future<void> _backupData() async {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
       ),
     );
+
+    try {
+      final userRepository = ref.read(userRepositoryProvider);
+      final assessmentRepository = ref.read(assessmentRepositoryProvider);
+      final trackingRepository = ref.read(trackingRepositoryProvider);
+
+      final profile = await userRepository.getUserProfile();
+      final assessments = await assessmentRepository.getAssessments();
+      final trackingHistory = await trackingRepository.getAllTracking();
+
+      final exportService = ExportService();
+      final backupData = exportService.createBackup(
+        profile: profile,
+        trackingHistory: trackingHistory,
+        assessments: assessments,
+      );
+
+      // Save to temporary file
+      final directory = await getTemporaryDirectory();
+      final timestamp = DateTime.now().toIso8601String().split('T')[0];
+      final filename = 'ageless_backup_$timestamp.json';
+      final filePath = '${directory.path}/$filename';
+      final file = File(filePath);
+      await file.writeAsString(backupData);
+
+      // Also copy to clipboard as backup
+      await Clipboard.setData(ClipboardData(text: backupData));
+
+      if (!mounted) return;
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Share the backup file
+      final result = await Share.shareXFiles(
+        [XFile(filePath, mimeType: 'application/json')],
+        subject: 'AgeLess Data Backup',
+        text: 'Your AgeLess health data backup. Save this file to restore your data later.',
+      );
+
+      if (!mounted) return;
+
+      // Show success message
+      if (result.status == ShareResultStatus.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Backup successful! File shared.'),
+            backgroundColor: AppTheme.successColor,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Backup created!'),
+                const SizedBox(height: 4),
+                Text(
+                  'Data copied to clipboard as backup.',
+                  style: AppTextStyles.caption.copyWith(color: Colors.white70),
+                ),
+              ],
+            ),
+            backgroundColor: AppTheme.successColor,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      // Close loading dialog if still open
+      Navigator.of(context).pop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Backup failed: $e'),
+          backgroundColor: AppTheme.errorColor,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 }
