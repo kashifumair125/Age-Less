@@ -8,4 +8,17 @@ final currentTrackingProvider = FutureProvider<DailyTracking?>((ref) async {
   return await repository.getTrackingForDate(DateTime.now());
 });
 
-final selectedDateProvider = StateProvider<DateTime>((ref) => DateTime.now());
+class SelectedDateNotifier extends Notifier<DateTime> {
+  @override
+  DateTime build() {
+    return DateTime.now();
+  }
+
+  void updateDate(DateTime newDate) {
+    state = newDate;
+  }
+}
+
+final selectedDateProvider = NotifierProvider<SelectedDateNotifier, DateTime>(
+  () => SelectedDateNotifier(),
+);

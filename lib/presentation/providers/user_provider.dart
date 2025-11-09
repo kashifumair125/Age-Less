@@ -8,6 +8,17 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
   return await repository.getUserProfile();
 });
 
-final biologicalAgeProvider = StateProvider<double?>((ref) {
-  return null;
-});
+class BiologicalAgeNotifier extends Notifier<double?> {
+  @override
+  double? build() {
+    return null;
+  }
+
+  void updateAge(double? newAge) {
+    state = newAge;
+  }
+}
+
+final biologicalAgeProvider = NotifierProvider<BiologicalAgeNotifier, double?>(
+  () => BiologicalAgeNotifier(),
+);

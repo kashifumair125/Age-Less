@@ -42,7 +42,7 @@ class ExportService {
                       'sessions': t.exercise!.sessions
                           .map((s) => {
                                 'type': s.type,
-                                'durationMinutes': s.durationMinutes,
+                                'durationMinutes': s.minutes,
                                 'intensity': s.intensity,
                               })
                           .toList(),

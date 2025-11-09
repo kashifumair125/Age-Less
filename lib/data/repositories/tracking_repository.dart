@@ -36,6 +36,15 @@ class TrackingRepository {
     }).toList();
   }
 
+  Future<List<DailyTracking>> getAllTracking() async {
+    final box = HiveConfig.dailyTrackingBox;
+    return box.values.toList();
+  }
+
+  Future<DailyTracking?> getTodayTracking() async {
+    return await getTrackingForDate(DateTime.now());
+  }
+
   String _getDateKey(DateTime date) {
     return '${date.year}-${date.month}-${date.day}';
   }

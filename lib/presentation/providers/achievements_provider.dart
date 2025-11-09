@@ -48,14 +48,12 @@ class AchievementsRepository {
 final achievementsRepositoryProvider =
     Provider((ref) => AchievementsRepository());
 
-final achievementsProvider =
-    StateNotifierProvider<AchievementsController, List<Achievement>>((ref) =>
-        AchievementsController(ref.read(achievementsRepositoryProvider)));
+class AchievementsController extends Notifier<List<Achievement>> {
+  AchievementsRepository get _repo => ref.read(achievementsRepositoryProvider);
 
-class AchievementsController extends StateNotifier<List<Achievement>> {
-  final AchievementsRepository _repo;
-  AchievementsController(this._repo) : super([]) {
-    state = _repo.getAll();
+  @override
+  List<Achievement> build() {
+    return _repo.getAll();
   }
 
   Future<void> unlockIfNeeded(
@@ -89,3 +87,7 @@ class AchievementsController extends StateNotifier<List<Achievement>> {
     state = [...state, a];
   }
 }
+
+final achievementsProvider =
+    NotifierProvider<AchievementsController, List<Achievement>>(() =>
+        AchievementsController());
