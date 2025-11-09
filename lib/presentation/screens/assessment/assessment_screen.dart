@@ -16,8 +16,38 @@ class AssessmentScreen extends ConsumerStatefulWidget {
 class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   int currentSection = 0;
   final PageController _pageController = PageController();
+  final DateTime _startTime = DateTime.now();
 
   final Map<String, dynamic> assessmentData = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedProgress();
+  }
+
+  Future<void> _loadSavedProgress() async {
+    // Load saved progress from Hive if exists
+    final box = ref.read(assessmentRepositoryProvider).getProgressBox();
+    final savedProgress = box.get('assessment_progress');
+    if (savedProgress != null && savedProgress is Map) {
+      setState(() {
+        assessmentData.addAll(Map<String, dynamic>.from(savedProgress));
+        final savedSection = box.get('current_section');
+        if (savedSection != null && savedSection is int) {
+          currentSection = savedSection;
+          _pageController.jumpToPage(currentSection);
+        }
+      });
+    }
+  }
+
+  Future<void> _saveProgress() async {
+    // Save current progress to Hive
+    final box = ref.read(assessmentRepositoryProvider).getProgressBox();
+    await box.put('assessment_progress', assessmentData);
+    await box.put('current_section', currentSection);
+  }
 
   final List<AssessmentSection> sections = [
     AssessmentSection(
@@ -199,6 +229,10 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   }
 
   Widget _buildProgressIndicator() {
+    final elapsedMinutes = DateTime.now().difference(_startTime).inMinutes;
+    final estimatedTotalMinutes = sections.length * 3; // Estimate 3 min per section
+    final estimatedRemaining = estimatedTotalMinutes - elapsedMinutes;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
@@ -212,12 +246,27 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                   color: Colors.grey.shade600,
                 ),
               ),
-              Text(
-                '${((currentSection / sections.length) * 100).toInt()}%',
-                style: AppTextStyles.body2.copyWith(
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.w600,
-                ),
+              Row(
+                children: [
+                  Icon(Icons.timer_outlined, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Text(
+                    estimatedRemaining > 0
+                      ? '~${estimatedRemaining} min left'
+                      : 'Almost done!',
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Text(
+                    '${((currentSection / sections.length) * 100).toInt()}%',
+                    style: AppTextStyles.body2.copyWith(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -556,6 +605,19 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   }
 
   void _nextSection() {
+    // Validate current section before proceeding
+    if (!_validateCurrentSection()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please answer all questions before proceeding'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
+    }
+
+    _saveProgress(); // Save progress
+
     if (currentSection < sections.length - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -565,12 +627,28 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   }
 
   void _previousSection() {
+    _saveProgress(); // Save progress
+
     if (currentSection > 0) {
       _pageController.previousPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     }
+  }
+
+  bool _validateCurrentSection() {
+    final currentSectionData = sections[currentSection];
+    for (final question in currentSectionData.questions) {
+      if (!assessmentData.containsKey(question.id)) {
+        return false;
+      }
+      // Check for empty or invalid values
+      final value = assessmentData[question.id];
+      if (value == null) return false;
+      if (value is String && value.isEmpty) return false;
+    }
+    return true;
   }
 
   Future<void> _completeAssessment() async {
@@ -616,6 +694,9 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
 
     // Update user's current biological age
     await userRepository.updateBiologicalAge(assessment.biologicalAge);
+
+    // Clear saved progress
+    await assessmentRepository.clearProgress();
 
     // Show results
     if (!mounted) return;
