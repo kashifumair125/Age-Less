@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/animations.dart';
+import '../../../core/services/haptic_feedback_service.dart';
 import '../../../data/repositories/assessment_repository.dart';
 import '../../../data/repositories/tracking_repository.dart';
 import '../../../data/repositories/user_repository.dart';
@@ -12,6 +14,9 @@ import '../../widgets/progress/weekly_summary_cards.dart';
 import '../../widgets/progress/monthly_report.dart';
 import '../../widgets/progress/before_after_comparison.dart';
 import '../../widgets/progress/habit_streaks.dart';
+import '../../widgets/common/shimmer_loading.dart';
+import '../../widgets/common/empty_state.dart';
+import '../../widgets/common/polished_button.dart';
 
 class ProgressScreenEnhanced extends ConsumerStatefulWidget {
   const ProgressScreenEnhanced({Key? key}) : super(key: key);
@@ -29,6 +34,11 @@ class _ProgressScreenEnhancedState extends ConsumerState<ProgressScreenEnhanced>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        HapticFeedbackService.selectionClick();
+      }
+    });
     _loadData();
   }
 
@@ -40,7 +50,7 @@ class _ProgressScreenEnhancedState extends ConsumerState<ProgressScreenEnhanced>
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 500)); // Simulate data loading
+    await Future.delayed(const Duration(milliseconds: 500));
     if (mounted) {
       setState(() => _isLoading = false);
     }
@@ -64,7 +74,7 @@ class _ProgressScreenEnhancedState extends ConsumerState<ProgressScreenEnhanced>
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildLoadingState()
           : TabBarView(
               controller: _tabController,
               children: [
@@ -76,58 +86,91 @@ class _ProgressScreenEnhancedState extends ConsumerState<ProgressScreenEnhanced>
     );
   }
 
+  Widget _buildLoadingState() {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        children: [
+          ShimmerLoading(child: SkeletonLoader.card(height: 300)),
+          const SizedBox(height: AppSpacing.lg),
+          ShimmerLoading(child: SkeletonLoader.card(height: 200)),
+          const SizedBox(height: AppSpacing.lg),
+          ShimmerLoading(child: SkeletonLoader.card(height: 250)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildOverviewTab() {
     return RefreshIndicator(
-      onRefresh: _loadData,
+      onRefresh: () async {
+        HapticFeedbackService.lightImpact();
+        await _loadData();
+      },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Bio-Age History Graph
-            FutureBuilder(
-              future: ref.read(assessmentRepositoryProvider).getAssessments(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                return BioAgeHistoryGraph(
-                  assessments: snapshot.data ?? [],
-                  onExport: () => _exportGraph(),
-                );
-              },
+            // Bio-Age History Graph with animation
+            AnimatedEntrance(
+              delay: const Duration(milliseconds: 100),
+              child: FutureBuilder(
+                future: ref.read(assessmentRepositoryProvider).getAssessments(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return ShimmerLoading(child: SkeletonLoader.card(height: 300));
+                  }
+                  if (snapshot.data == null || (snapshot.data as List).isEmpty) {
+                    return EmptyStates.noAssessments();
+                  }
+                  return BioAgeHistoryGraph(
+                    assessments: snapshot.data ?? [],
+                    onExport: () {
+                      HapticFeedbackService.success();
+                      _exportGraph();
+                    },
+                  );
+                },
+              ),
             ),
             const SizedBox(height: AppSpacing.xl),
 
-            // Weekly Summary Cards
-            FutureBuilder(
-              future: _getLast7Days(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                return WeeklySummaryCards(
-                  last7Days: snapshot.data ?? [],
-                );
-              },
+            // Weekly Summary Cards with animation
+            AnimatedEntrance(
+              delay: const Duration(milliseconds: 200),
+              child: FutureBuilder(
+                future: _getLast7Days(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return ShimmerLoading(child: SkeletonLoader.card(height: 200));
+                  }
+                  return WeeklySummaryCards(
+                    last7Days: snapshot.data ?? [],
+                  );
+                },
+              ),
             ),
             const SizedBox(height: AppSpacing.xl),
 
-            // Habit Streaks
-            FutureBuilder(
-              future: _getStreakData(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final data = snapshot.data as Map<String, dynamic>? ?? {};
-                return HabitStreaks(
-                  trackingHistory: data['history'] ?? [],
-                  currentStreak: data['currentStreak'] ?? 0,
-                  longestStreak: data['longestStreak'] ?? 0,
-                );
-              },
+            // Habit Streaks with animation
+            AnimatedEntrance(
+              delay: const Duration(milliseconds: 300),
+              child: FutureBuilder(
+                future: _getStreakData(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return ShimmerLoading(child: SkeletonLoader.card(height: 250));
+                  }
+                  final data = snapshot.data as Map<String, dynamic>? ?? {};
+                  return HabitStreaks(
+                    trackingHistory: data['history'] ?? [],
+                    currentStreak: data['currentStreak'] ?? 0,
+                    longestStreak: data['longestStreak'] ?? 0,
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -141,12 +184,14 @@ class _ProgressScreenEnhancedState extends ConsumerState<ProgressScreenEnhanced>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Category Performance Radar
-          FutureBuilder(
+          // Category Performance Radar with animation
+          AnimatedEntrance(
+            delay: const Duration(milliseconds: 100),
+            child: FutureBuilder(
               future: _getAssessmentsForRadar(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return ShimmerLoading(child: SkeletonLoader.card(height: 350));
                 }
                 final data = snapshot.data as Map<String, dynamic>? ?? {};
                 return CategoryPerformanceRadar(
@@ -155,23 +200,27 @@ class _ProgressScreenEnhancedState extends ConsumerState<ProgressScreenEnhanced>
                 );
               },
             ),
-            const SizedBox(height: AppSpacing.xl),
+          ),
+          const SizedBox(height: AppSpacing.xl),
 
-          // Before/After Comparison
-          FutureBuilder(
-            future: _getBeforeAfterData(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final data = snapshot.data as Map<String, dynamic>? ?? {};
-              return BeforeAfterComparison(
-                firstAssessment: data['first'],
-                latestAssessment: data['latest'],
-                initialWeight: data['initialWeight'],
-                currentWeight: data['currentWeight'],
-              );
-            },
+          // Before/After Comparison with animation
+          AnimatedEntrance(
+            delay: const Duration(milliseconds: 200),
+            child: FutureBuilder(
+              future: _getBeforeAfterData(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return ShimmerLoading(child: SkeletonLoader.card(height: 300));
+                }
+                final data = snapshot.data as Map<String, dynamic>? ?? {};
+                return BeforeAfterComparison(
+                  firstAssessment: data['first'],
+                  latestAssessment: data['latest'],
+                  initialWeight: data['initialWeight'],
+                  currentWeight: data['currentWeight'],
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -184,25 +233,31 @@ class _ProgressScreenEnhancedState extends ConsumerState<ProgressScreenEnhanced>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Monthly Report
-          FutureBuilder(
-            future: _getMonthlyReportData(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final data = snapshot.data as Map<String, dynamic>? ?? {};
-              return MonthlyReport(
-                monthAssessments: data['assessments'] ?? [],
-                monthAchievements: data['achievements'] ?? [],
-                monthStats: data['stats'] ?? {},
-              );
-            },
+          // Monthly Report with animation
+          AnimatedEntrance(
+            delay: const Duration(milliseconds: 100),
+            child: FutureBuilder(
+              future: _getMonthlyReportData(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return ShimmerLoading(child: SkeletonLoader.card(height: 400));
+                }
+                final data = snapshot.data as Map<String, dynamic>? ?? {};
+                return MonthlyReport(
+                  monthAssessments: data['assessments'] ?? [],
+                  monthAchievements: data['achievements'] ?? [],
+                  monthStats: data['stats'] ?? {},
+                );
+              },
+            ),
           ),
           const SizedBox(height: AppSpacing.xl),
 
-          // Additional insights section
-          _buildInsightsSection(),
+          // Additional insights section with animation
+          AnimatedEntrance(
+            delay: const Duration(milliseconds: 200),
+            child: _buildInsightsSection(),
+          ),
         ],
       ),
     );
@@ -264,7 +319,6 @@ class _ProgressScreenEnhancedState extends ConsumerState<ProgressScreenEnhanced>
   Future<Map<String, dynamic>> _getStreakData() async {
     final trackingRepository = ref.read(trackingRepositoryProvider);
     final trackingHistory = await trackingRepository.getAllTracking();
-
     final progressService = ProgressService();
     final assessmentRepository = ref.read(assessmentRepositoryProvider);
     final assessments = await assessmentRepository.getAssessments();
@@ -334,7 +388,6 @@ class _ProgressScreenEnhancedState extends ConsumerState<ProgressScreenEnhanced>
       return a.assessmentDate.isAfter(monthStart) && a.assessmentDate.isBefore(monthEnd);
     }).toList();
 
-    // Get achievements for the month
     final trackingRepository = ref.read(trackingRepositoryProvider);
     final trackingHistory = await trackingRepository.getAllTracking();
 

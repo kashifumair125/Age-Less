@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/animations.dart';
+import '../../../core/services/haptic_feedback_service.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/repositories/assessment_repository.dart';
 import '../../../data/repositories/tracking_repository.dart';
@@ -14,6 +16,10 @@ import '../../widgets/profile/achievement_gallery.dart';
 import '../../widgets/profile/personal_best_records.dart';
 import '../../widgets/profile/health_profile_details.dart';
 import '../../widgets/profile/data_privacy_section.dart';
+import '../../widgets/common/shimmer_loading.dart';
+import '../../widgets/common/empty_state.dart';
+import '../../widgets/common/error_state.dart';
+import '../../widgets/common/polished_button.dart';
 import '../../widgets/export_dialog.dart';
 import 'profile_edit_screen.dart';
 
@@ -156,12 +162,14 @@ class _ProfileScreenEnhancedState extends ConsumerState<ProfileScreenEnhanced> {
       appBar: AppBar(
         title: const Text('Profile'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
+          PolishedIconButton(
+            icon: Icons.edit,
+            tooltip: 'Edit Profile',
             onPressed: () async {
+              HapticFeedbackService.lightImpact();
               await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const ProfileEditScreen(),
+                PageTransitionBuilder.slideTransition(
+                  page: const ProfileEditScreen(),
                 ),
               );
               _loadData(); // Reload data after editing
@@ -170,85 +178,129 @@ class _ProfileScreenEnhancedState extends ConsumerState<ProfileScreenEnhanced> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Profile Header
-                    _buildProfileHeader(),
-                    const SizedBox(height: AppSpacing.xl),
+          ? _buildLoadingState()
+          : _profile == null
+              ? _buildEmptyState()
+              : RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Profile Header with animation
+                        AnimatedEntrance(
+                          delay: const Duration(milliseconds: 100),
+                          child: _buildProfileHeader(),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
 
-                    // User Stats Card
-                    UserStatsCard(
-                      totalDays: _totalDays,
-                      currentStreak: _currentStreak,
-                      totalAssessments: _totalAssessments,
-                      bioAgeImprovement: _bioAgeImprovement,
-                      profileCompletion: _profileCompletion,
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
+                        // User Stats Card with animation
+                        AnimatedEntrance(
+                          delay: const Duration(milliseconds: 200),
+                          child: UserStatsCard(
+                            totalDays: _totalDays,
+                            currentStreak: _currentStreak,
+                            totalAssessments: _totalAssessments,
+                            bioAgeImprovement: _bioAgeImprovement,
+                            profileCompletion: _profileCompletion,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
 
-                    // Health Journey Timeline
-                    FutureBuilder(
-                      future: _loadAssessmentsAndMilestones(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        final data = snapshot.data as Map<String, dynamic>? ?? {};
+                        // Health Journey Timeline with animation
+                        AnimatedEntrance(
+                          delay: const Duration(milliseconds: 300),
+                          child: FutureBuilder(
+                            future: _loadAssessmentsAndMilestones(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return ShimmerLoading(
+                                  child: SkeletonLoader.card(height: 300),
+                                );
+                              }
+                              final data = snapshot.data as Map<String, dynamic>? ?? {};
                         return HealthJourneyTimeline(
                           assessments: data['assessments'] ?? [],
                           milestones: data['milestones'] ?? [],
                         );
                       },
                     ),
-                    const SizedBox(height: AppSpacing.xl),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
 
-                    // Achievement Gallery
-                    FutureBuilder(
-                      future: _loadAchievements(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        final data = snapshot.data as Map<String, dynamic>? ?? {};
-                        return AchievementGallery(
-                          achievements: data['unlocked'] ?? [],
-                          availableAchievements: data['available'] ?? [],
-                          leaderboardPosition: null, // Can be implemented later
-                        );
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
+                        // Achievement Gallery with animation
+                        AnimatedEntrance(
+                          delay: const Duration(milliseconds: 400),
+                          child: FutureBuilder(
+                            future: _loadAchievements(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return ShimmerLoading(
+                                  child: SkeletonLoader.card(height: 200),
+                                );
+                              }
+                              final data = snapshot.data as Map<String, dynamic>? ?? {};
+                              return AchievementGallery(
+                                achievements: data['unlocked'] ?? [],
+                                availableAchievements: data['available'] ?? [],
+                                leaderboardPosition: null,
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
 
-                    // Personal Best Records
-                    PersonalBestRecords(
-                      longestStreak: _longestStreak,
-                      bestBioAge: _bestBioAge,
-                      mostActiveWeek: _mostActiveWeek,
-                      consistencyScore: _consistencyScore,
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
+                        // Personal Best Records with animation
+                        AnimatedEntrance(
+                          delay: const Duration(milliseconds: 500),
+                          child: PersonalBestRecords(
+                            longestStreak: _longestStreak,
+                            bestBioAge: _bestBioAge,
+                            mostActiveWeek: _mostActiveWeek,
+                            consistencyScore: _consistencyScore,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
 
-                    // Health Profile Details
-                    HealthProfileDetails(
-                      healthProfile: _healthProfile,
-                      onEdit: () => _showHealthProfileEditor(),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
+                        // Health Profile Details with animation
+                        AnimatedEntrance(
+                          delay: const Duration(milliseconds: 600),
+                          child: HealthProfileDetails(
+                            healthProfile: _healthProfile,
+                            onEdit: () {
+                              HapticFeedbackService.lightImpact();
+                              _showHealthProfileEditor();
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
 
-                    // Data & Privacy Section
-                    DataPrivacySection(
-                      onExportData: () => _showExportDialog(),
-                      onDeleteAccount: () => _deleteAccount(),
-                      onPrivacySettings: () => _showPrivacySettings(),
-                      onBackupData: () => _backupData(),
-                    ),
+                        // Data & Privacy Section with animation
+                        AnimatedEntrance(
+                          delay: const Duration(milliseconds: 700),
+                          child: DataPrivacySection(
+                            onExportData: () {
+                              HapticFeedbackService.lightImpact();
+                              _showExportDialog();
+                            },
+                            onDeleteAccount: () {
+                              HapticFeedbackService.warning();
+                              _deleteAccount();
+                            },
+                            onPrivacySettings: () {
+                              HapticFeedbackService.lightImpact();
+                              _showPrivacySettings();
+                            },
+                            onBackupData: () {
+                              HapticFeedbackService.success();
+                              _backupData();
+                            },
+                          ),
+                        ),
                     const SizedBox(height: AppSpacing.xl),
                   ],
                 ),
@@ -381,13 +433,49 @@ class _ProfileScreenEnhancedState extends ConsumerState<ProfileScreenEnhanced> {
     };
   }
 
+  Widget _buildLoadingState() {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        children: [
+          ShimmerLoading(child: SkeletonLoader.profileHeader()),
+          const SizedBox(height: AppSpacing.xl),
+          ShimmerLoading(child: SkeletonLoader.card(height: 150)),
+          const SizedBox(height: AppSpacing.lg),
+          ShimmerLoading(child: SkeletonLoader.card(height: 300)),
+          const SizedBox(height: AppSpacing.lg),
+          ShimmerLoading(child: SkeletonLoader.card(height: 200)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return EmptyState(
+      icon: Icons.person_outline,
+      title: 'No Profile Found',
+      message: 'Create your profile to start tracking your health journey',
+      actionLabel: 'Create Profile',
+      onAction: () {
+        HapticFeedbackService.mediumImpact();
+        Navigator.of(context).push(
+          PageTransitionBuilder.slideTransition(
+            page: const ProfileEditScreen(),
+          ),
+        );
+      },
+    );
+  }
+
   void _showHealthProfileEditor() {
+    HapticFeedbackService.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Health profile editor coming soon!')),
     );
   }
 
   void _showExportDialog() {
+    HapticFeedbackService.lightImpact();
     showDialog(
       context: context,
       builder: (context) => const ExportDialog(),
@@ -395,6 +483,7 @@ class _ProfileScreenEnhancedState extends ConsumerState<ProfileScreenEnhanced> {
   }
 
   void _deleteAccount() {
+    HapticFeedbackService.error();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Account deleted (demo mode)'),
@@ -404,12 +493,14 @@ class _ProfileScreenEnhancedState extends ConsumerState<ProfileScreenEnhanced> {
   }
 
   void _showPrivacySettings() {
+    HapticFeedbackService.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Privacy settings coming soon!')),
     );
   }
 
   void _backupData() {
+    HapticFeedbackService.success();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Data backed up successfully!'),
